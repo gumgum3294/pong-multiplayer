@@ -62,9 +62,11 @@ To play with friends online (not just local network):
 ```bash
 # Install ngrok: https://ngrok.com
 npm start
+# cd ~/Downloads/pong-multiplayer
+npm start
 # In another terminal:
 ngrok http 3000
-# Share the https://xxxx.ngrok.io URL with your friend
+## Share the https://xxxx.ngrok.io URL with your friend
 ```
 
 ### Option B — Deploy to Railway / Render / Fly.io

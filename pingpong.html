@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PONG.IO — Multiplayer Ping Pong</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --neon-green: #00ff88;
+    --neon-blue: #00ccff;
+    --neon-pink: #ff0080;
+    --dark: #060a0f;
+    --dark2: #0d1520;
+    --dark3: #132030;
+    --border: rgba(0,255,136,0.25);
+    --glow: 0 0 20px rgba(0,255,136,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--dark);
+    color: var(--neon-green);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scanlines */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+
+  .screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.95);
+  }
+
+  /* ===== LOBBY SCREEN ===== */
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: clamp(48px, 8vw, 90px);
+    letter-spacing: 0.15em;
+    color: var(--neon-green);
+    text-shadow: 0 0 30px var(--neon-green), 0 0 60px rgba(0,255,136,0.3);
+    margin-bottom: 8px;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  .logo span { color: var(--neon-blue); }
+
+  .tagline {
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    color: rgba(0,255,136,0.5);
+    margin-bottom: 60px;
+    text-transform: uppercase;
+  }
+
+  @keyframes pulse {
+    0%, 100% { text-shadow: 0 0 30px var(--neon-green), 0 0 60px rgba(0,255,136,0.3); }
+    50% { text-shadow: 0 0 50px var(--neon-green), 0 0 100px rgba(0,255,136,0.5); }
+  }
+
+  .card {
+    background: var(--dark2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 40px;
+    width: min(480px, 90vw);
+    box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 40px rgba(0,255,136,0.02);
+    position: relative;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--neon-green), transparent);
+  }
+
+  .card-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    letter-spacing: 0.3em;
+    color: var(--neon-green);
+    margin-bottom: 30px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: rgba(0,255,136,0.5);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  input {
+    width: 100%;
+    background: var(--dark3);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--neon-green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 20px;
+    letter-spacing: 0.1em;
+  }
+
+  input:focus {
+    border-color: var(--neon-green);
+    box-shadow: 0 0 15px rgba(0,255,136,0.2);
+  }
+
+  input::placeholder { color: rgba(0,255,136,0.2); }
+
+  .btn {
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    padding: 14px 28px;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .btn-primary {
+    background: var(--neon-green);
+    color: var(--dark);
+    border-color: var(--neon-green);
+    box-shadow: 0 0 20px rgba(0,255,136,0.3);
+  }
+
+  .btn-primary:hover {
+    background: transparent;
+    color: var(--neon-green);
+    box-shadow: 0 0 30px rgba(0,255,136,0.5);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--neon-blue);
+    border-color: var(--neon-blue);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(0,204,255,0.1);
+    box-shadow: 0 0 20px rgba(0,204,255,0.3);
+  }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--neon-pink);
+    border-color: var(--neon-pink);
+  }
+
+  .btn-danger:hover {
+    background: rgba(255,0,128,0.1);
+    box-shadow: 0 0 20px rgba(255,0,128,0.3);
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 8px 0 20px;
+    color: rgba(0,255,136,0.2);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+  }
+
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ===== ROOM LIST ===== */
+  .rooms-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+  }
+
+  .room-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--dark3);
+  }
+
+  .room-item:hover {
+    border-color: var(--neon-green);
+    box-shadow: var(--glow);
+  }
+
+  .room-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+  }
+
+  .room-status {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 2px;
+    border: 1px solid;
+  }
+
+  .status-waiting {
+    color: var(--neon-green);
+    border-color: var(--neon-green);
+  }
+
+  .status-full {
+    color: rgba(255,0,128,0.7);
+    border-color: rgba(255,0,128,0.3);
+  }
+
+  /* ===== WAITING ROOM ===== */
+  .waiting-room {
+    text-align: center;
+  }
+
+  .room-code {
+    font-family: 'Orbitron', monospace;
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    color: var(--neon-blue);
+    text-shadow: 0 0 30px var(--neon-blue);
+    margin: 20px 0;
+  }
+
+  .players-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 30px 0;
+  }
+
+  .player-slot {
+    border: 1px dashed var(--border);
+    border-radius: 2px;
+    padding: 20px;
+    text-align: center;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .player-slot.filled {
+    border-style: solid;
+    border-color: var(--neon-green);
+    background: rgba(0,255,136,0.05);
+  }
+
+  .player-slot.p2-filled {
+    border-color: var(--neon-blue);
+    background: rgba(0,204,255,0.05);
+  }
+
+  .player-label {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    opacity: 0.5;
+  }
+
+  .player-name-display {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    letter-spacing: 0.15em;
+  }
+
+  .blink {
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* ===== GAME SCREEN ===== */
+  #game-screen {
+    background: var(--dark);
+  }
+
+  .game-header {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    z-index: 20;
+  }
+
+  .score-panel {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+  }
+
+  .player-score {
+    text-align: center;
+  }
+
+  .score-name {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    opacity: 0.5;
+    margin-bottom: 4px;
+  }
+
+  .score-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .p1-color { color: var(--neon-green); text-shadow: 0 0 20px var(--neon-green); }
+  .p2-color { color: var(--neon-blue); text-shadow: 0 0 20px var(--neon-blue); }
+
+  .vs-sep {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    opacity: 0.3;
+    letter-spacing: 0.2em;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  .game-controls-hint {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    opacity: 0.3;
+    text-align: center;
+    z-index: 20;
+  }
+
+  .countdown-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    background: rgba(6,10,15,0.85);
+    font-family: 'Orbitron', monospace;
+    font-size: 120px;
+    font-weight: 900;
+    text-shadow: 0 0 60px var(--neon-green);
+    animation: countScale 0.8s ease-out;
+  }
+
+  @keyframes countScale {
+    from { transform: scale(2); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .win-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    background: rgba(6,10,15,0.92);
+    gap: 20px;
+  }
+
+  .win-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    animation: winPulse 1s ease-in-out infinite;
+  }
+
+  @keyframes winPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  .win-subtitle {
+    font-size: 14px;
+    letter-spacing: 0.3em;
+    opacity: 0.6;
+    margin-bottom: 20px;
+  }
+
+  .btn-small {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    padding: 12px 32px;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    background: transparent;
+    margin: 4px 8px;
+  }
+
+  .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--dark2);
+    border: 1px solid var(--neon-green);
+    border-radius: 2px;
+    padding: 12px 20px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    z-index: 200;
+    box-shadow: var(--glow);
+    transition: opacity 0.4s;
+  }
+
+  .notification.fade { opacity: 0; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--dark); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- LOBBY SCREEN -->
+<div id="lobby-screen" class="screen">
+  <div class="logo">PONG<span>.</span>IO</div>
+  <div class="tagline">Real-Time Multiplayer Table Tennis</div>
+  <div class="card">
+    <div class="card-title">// Connect</div>
+    <label>Your Username</label>
+    <input type="text" id="username-input" placeholder="PLAYER_ONE" maxlength="12" autocomplete="off">
+    <button class="btn btn-primary" onclick="goToRooms()">Enter Lobby →</button>
+  </div>
+</div>
+
+<!-- ROOMS SCREEN -->
+<div id="rooms-screen" class="screen hidden">
+  <div class="logo" style="font-size:clamp(28px,4vw,48px); margin-bottom:4px;">PONG<span>.</span>IO</div>
+  <div class="tagline" style="margin-bottom:32px;">Game Lobby</div>
+  <div class="card" style="width:min(560px,92vw)">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+      <div class="card-title" style="margin:0">// Rooms</div>
+      <span style="font-size:12px; opacity:0.5">Playing as: <span id="display-username" style="color:var(--neon-green); opacity:1"></span></span>
+    </div>
+
+    <div class="rooms-list" id="rooms-list">
+      <div style="text-align:center; opacity:0.3; padding:30px; font-size:12px; letter-spacing:0.2em;">NO ROOMS AVAILABLE</div>
+    </div>
+
+    <div class="divider">OR</div>
+
+    <label>Create New Room</label>
+    <input type="text" id="room-name-input" placeholder="My Awesome Room" maxlength="20" autocomplete="off">
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <button class="btn btn-primary" style="margin:0" onclick="createRoom()">+ Create Room</button>
+      <button class="btn btn-secondary" style="margin:0" onclick="showJoinByCode()">Join By Code</button>
+    </div>
+
+    <div id="join-code-panel" style="display:none; margin-top:16px;">
+      <label>Room Code</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="join-code-input" placeholder="ABC123" maxlength="6" style="margin:0; text-transform:uppercase; letter-spacing:0.3em;" autocomplete="off">
+        <button class="btn btn-primary" style="width:auto; white-space:nowrap; margin:0; padding:12px 20px;" onclick="joinByCode()">Join</button>
+      </div>
+    </div>
+
+    <button class="btn btn-danger" style="margin-top:16px; width:auto; font-size:11px; padding:8px 20px;" onclick="goBack()">← Back</button>
+  </div>
+</div>
+
+<!-- WAITING ROOM SCREEN -->
+<div id="waiting-screen" class="screen hidden">
+  <div class="card waiting-room" style="width:min(520px,92vw)">
+    <div class="card-title">// Waiting Room</div>
+    <div id="waiting-room-name" style="font-family:'Orbitron',monospace; font-size:18px; letter-spacing:0.2em; margin-bottom:8px;"></div>
+    <div style="font-size:11px; opacity:0.4; margin-bottom:4px; letter-spacing:0.2em;">ROOM CODE</div>
+    <div class="room-code" id="waiting-room-code"></div>
+    <div style="font-size:11px; opacity:0.4; letter-spacing:0.15em; margin-bottom:20px;">Share this code with your opponent</div>
+
+    <div class="players-grid">
+      <div class="player-slot filled">
+        <div class="player-label">PLAYER 1 (W/S)</div>
+        <div class="player-name-display p1-color" id="wait-p1-name"></div>
+      </div>
+      <div class="player-slot" id="p2-slot">
+        <div class="player-label">PLAYER 2 (↑/↓)</div>
+        <div class="player-name-display blink" style="opacity:0.3">WAITING...</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="start-game-btn" style="display:none" onclick="startGame()">START GAME ▶</button>
+    <button class="btn btn-danger" style="margin-top:8px" onclick="leaveRoom()">Leave Room</button>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="game-screen" class="screen hidden">
+  <div class="game-header">
+    <div class="score-panel">
+      <div class="player-score">
+        <div class="score-name" id="p1-score-name">P1</div>
+        <div class="score-val p1-color" id="p1-score">0</div>
+      </div>
+      <div class="vs-sep">VS</div>
+      <div class="player-score">
+        <div class="score-name" id="p2-score-name">P2</div>
+        <div class="score-val p2-color" id="p2-score">0</div>
+      </div>
+    </div>
+    <button class="btn-small" style="color:var(--neon-pink); border-color:var(--neon-pink);" onclick="quitGame()">QUIT</button>
+  </div>
+
+  <canvas id="game-canvas"></canvas>
+
+  <div id="countdown-overlay" class="countdown-overlay hidden"></div>
+  <div id="win-overlay" class="win-overlay hidden">
+    <div class="win-title" id="win-title"></div>
+    <div class="win-subtitle" id="win-subtitle"></div>
+    <div>
+      <button class="btn-small p1-color" onclick="rematch()">↺ REMATCH</button>
+      <button class="btn-small" style="color:var(--neon-blue)" onclick="quitGame()">⌂ LOBBY</button>
+    </div>
+  </div>
+
+  <div class="game-controls-hint">P1: W/S KEY &nbsp;|&nbsp; P2: ↑/↓ ARROW &nbsp;|&nbsp; FIRST TO 7 WINS</div>
+</div>
+
+<script>
+// ===== STATE =====
+let myUsername = '';
+let rooms = {};  // { code: { name, p1, p2, host } }
+let currentRoom = null;
+let isHost = false;
+let p2JoinInterval = null;
+
+// ===== NAVIGATION =====
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function notify(msg) {
+  const el = document.createElement('div');
+  el.className = 'notification';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.classList.add('fade'); setTimeout(() => el.remove(), 400); }, 2500);
+}
+
+// ===== LOBBY =====
+function goToRooms() {
+  const val = document.getElementById('username-input').value.trim().toUpperCase();
+  if (!val) { notify('Enter a username first!'); return; }
+  myUsername = val;
+  document.getElementById('display-username').textContent = myUsername;
+  renderRooms();
+  showScreen('rooms-screen');
+}
+
+function goBack() {
+  showScreen('lobby-screen');
+}
+
+function showJoinByCode() {
+  const p = document.getElementById('join-code-panel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+// ===== ROOMS =====
+function generateCode() {
+  return Math.random().toString(36).substr(2, 6).toUpperCase();
+}
+
+function createRoom() {
+  const name = document.getElementById('room-name-input').value.trim() || myUsername + "'s Room";
+  const code = generateCode();
+  rooms[code] = { name, p1: myUsername, p2: null, host: myUsername };
+  currentRoom = code;
+  isHost = true;
+  showWaitingRoom(code);
+}
+
+function joinByCode() {
+  const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+  joinRoom(code);
+}
+
+function joinRoom(code) {
+  const room = rooms[code];
+  if (!room) { notify('Room not found!'); return; }
+  if (room.p2) { notify('Room is full!'); return; }
+  if (room.p1 === myUsername) { notify('You are already in this room!'); return; }
+  room.p2 = myUsername;
+  currentRoom = code;
+  isHost = false;
+  showWaitingRoom(code);
+}
+
+function renderRooms() {
+  const list = document.getElementById('rooms-list');
+  const available = Object.entries(rooms).filter(([, r]) => !r.p2);
+  if (available.length === 0) {
+    list.innerHTML = '<div style="text-align:center; opacity:0.3; padding:30px; font-size:12px; letter-spacing:0.2em;">NO ROOMS AVAILABLE</div>';
+    return;
+  }
+  list.innerHTML = available.map(([code, room]) => `
+    <div class="room-item" onclick="joinRoom('${code}')">
+      <div>
+        <div class="room-name">${room.name}</div>
+        <div style="font-size:11px; opacity:0.4; margin-top:4px; letter-spacing:0.1em;">Host: ${room.p1} &nbsp;|&nbsp; Code: ${code}</div>
+      </div>
+      <div class="room-status status-waiting">WAITING</div>
+    </div>
+  `).join('');
+}
+
+// ===== WAITING ROOM =====
+function showWaitingRoom(code) {
+  const room = rooms[code];
+  document.getElementById('waiting-room-name').textContent = room.name;
+  document.getElementById('waiting-room-code').textContent = code;
+  document.getElementById('wait-p1-name').textContent = room.p1;
+  updateWaitingSlots();
+  showScreen('waiting-screen');
+
+  if (isHost) {
+    // Poll for p2 joining
+    p2JoinInterval = setInterval(() => {
+      updateWaitingSlots();
+      if (rooms[code] && rooms[code].p2) {
+        clearInterval(p2JoinInterval);
+      }
+    }, 500);
+  } else {
+    notify('Joined! Waiting for host to start...');
+  }
+}
+
+function updateWaitingSlots() {
+  const room = rooms[currentRoom];
+  if (!room) return;
+  const p2slot = document.getElementById('p2-slot');
+  const startBtn = document.getElementById('start-game-btn');
+
+  if (room.p2) {
+    p2slot.className = 'player-slot p2-filled';
+    p2slot.innerHTML = `<div class="player-label">PLAYER 2 (↑/↓)</div><div class="player-name-display p2-color">${room.p2}</div>`;
+    if (isHost) startBtn.style.display = 'block';
+  } else {
+    p2slot.className = 'player-slot';
+    p2slot.innerHTML = `<div class="player-label">PLAYER 2 (↑/↓)</div><div class="player-name-display blink" style="opacity:0.3">WAITING...</div>`;
+    startBtn.style.display = 'none';
+  }
+}
+
+function leaveRoom() {
+  if (currentRoom && rooms[currentRoom]) {
+    if (isHost) {
+      delete rooms[currentRoom];
+    } else {
+      rooms[currentRoom].p2 = null;
+    }
+  }
+  clearInterval(p2JoinInterval);
+  currentRoom = null;
+  renderRooms();
+  showScreen('rooms-screen');
+}
+
+// ===== GAME ENGINE =====
+let gameState = null;
+let animFrame = null;
+let keys = {};
+
+document.addEventListener('keydown', e => { keys[e.key] = true; });
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function startGame() {
+  if (p2JoinInterval) clearInterval(p2JoinInterval);
+  const room = rooms[currentRoom];
+  initGame(room.p1, room.p2);
+  showScreen('game-screen');
+  runCountdown(3, () => gameLoop());
+}
+
+function initGame(p1name, p2name) {
+  const canvas = document.getElementById('game-canvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const W = canvas.width;
+  const H = canvas.height;
+
+  document.getElementById('p1-score-name').textContent = p1name;
+  document.getElementById('p2-score-name').textContent = p2name;
+
+  const PAD_H = Math.max(80, H * 0.14);
+  const PAD_W = 14;
+  const BALL_SIZE = 10;
+  const SPEED_INIT = Math.max(5, W * 0.006);
+  const PAD_SPEED = Math.max(7, H * 0.01);
+
+  gameState = {
+    W, H, PAD_H, PAD_W, BALL_SIZE, PAD_SPEED,
+    p1: { name: p1name, y: H/2 - PAD_H/2, score: 0 },
+    p2: { name: p2name, y: H/2 - PAD_H/2, score: 0 },
+    ball: resetBall(W, H, BALL_SIZE, SPEED_INIT),
+    speedInit: SPEED_INIT,
+    running: false,
+    particles: []
+  };
+
+  document.getElementById('p1-score').textContent = '0';
+  document.getElementById('p2-score').textContent = '0';
+  document.getElementById('win-overlay').classList.add('hidden');
+}
+
+function resetBall(W, H, size, speed) {
+  const angle = (Math.random() * 60 - 30) * Math.PI / 180;
+  const dir = Math.random() > 0.5 ? 1 : -1;
+  return {
+    x: W/2, y: H/2,
+    vx: Math.cos(angle) * speed * dir,
+    vy: Math.sin(angle) * speed,
+    size, speed,
+    trail: []
+  };
+}
+
+function runCountdown(n, cb) {
+  const el = document.getElementById('countdown-overlay');
+  el.classList.remove('hidden');
+
+  let count = n;
+  const tick = () => {
+    if (count <= 0) {
+      el.classList.add('hidden');
+      cb();
+      return;
+    }
+    el.textContent = count === 0 ? 'GO!' : count;
+    el.style.animation = 'none';
+    el.offsetHeight;
+    el.style.animation = 'countScale 0.8s ease-out';
+    count--;
+    setTimeout(tick, 900);
+  };
+  tick();
+}
+
+function spawnParticles(x, y, color) {
+  for (let i = 0; i < 12; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 5 + 2;
+    gameState.particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      color,
+      size: Math.random() * 4 + 2
+    });
+  }
+}
+
+function gameLoop() {
+  if (!gameState) return;
+  gameState.running = true;
+  const canvas = document.getElementById('game-canvas');
+  const ctx = canvas.getContext('2d');
+  const gs = gameState;
+
+  function update() {
+    if (!gs.running) return;
+
+    const PAD_X_MARGIN = 40;
+    const PAD_SPEED = gs.PAD_SPEED;
+
+    // Move paddles
+    if (keys['w'] || keys['W']) gs.p1.y -= PAD_SPEED;
+    if (keys['s'] || keys['S']) gs.p1.y += PAD_SPEED;
+    if (keys['ArrowUp']) gs.p2.y -= PAD_SPEED;
+    if (keys['ArrowDown']) gs.p2.y += PAD_SPEED;
+
+    gs.p1.y = Math.max(0, Math.min(gs.H - gs.PAD_H, gs.p1.y));
+    gs.p2.y = Math.max(0, Math.min(gs.H - gs.PAD_H, gs.p2.y));
+
+    // Ball trail
+    gs.ball.trail.push({ x: gs.ball.x, y: gs.ball.y });
+    if (gs.ball.trail.length > 12) gs.ball.trail.shift();
+
+    // Move ball
+    gs.ball.x += gs.ball.vx;
+    gs.ball.y += gs.ball.vy;
+
+    // Wall bounce (top/bottom)
+    if (gs.ball.y - gs.ball.size < 0) {
+      gs.ball.y = gs.ball.size;
+      gs.ball.vy = Math.abs(gs.ball.vy);
+    }
+    if (gs.ball.y + gs.ball.size > gs.H) {
+      gs.ball.y = gs.H - gs.ball.size;
+      gs.ball.vy = -Math.abs(gs.ball.vy);
+    }
+
+    // P1 paddle collision (left)
+    const p1x = PAD_X_MARGIN;
+    if (gs.ball.vx < 0 &&
+        gs.ball.x - gs.ball.size < p1x + gs.PAD_W &&
+        gs.ball.x + gs.ball.size > p1x &&
+        gs.ball.y > gs.p1.y &&
+        gs.ball.y < gs.p1.y + gs.PAD_H) {
+      gs.ball.x = p1x + gs.PAD_W + gs.ball.size;
+      const relY = (gs.ball.y - (gs.p1.y + gs.PAD_H/2)) / (gs.PAD_H/2);
+      const bounceAngle = relY * 60 * Math.PI/180;
+      gs.ball.speed = Math.min(gs.ball.speed * 1.05, gs.W * 0.015);
+      gs.ball.vx = Math.cos(bounceAngle) * gs.ball.speed;
+      gs.ball.vy = Math.sin(bounceAngle) * gs.ball.speed;
+      spawnParticles(gs.ball.x, gs.ball.y, '#00ff88');
+    }
+
+    // P2 paddle collision (right)
+    const p2x = gs.W - PAD_X_MARGIN - gs.PAD_W;
+    if (gs.ball.vx > 0 &&
+        gs.ball.x + gs.ball.size > p2x &&
+        gs.ball.x - gs.ball.size < p2x + gs.PAD_W &&
+        gs.ball.y > gs.p2.y &&
+        gs.ball.y < gs.p2.y + gs.PAD_H) {
+      gs.ball.x = p2x - gs.ball.size;
+      const relY = (gs.ball.y - (gs.p2.y + gs.PAD_H/2)) / (gs.PAD_H/2);
+      const bounceAngle = relY * 60 * Math.PI/180;
+      gs.ball.speed = Math.min(gs.ball.speed * 1.05, gs.W * 0.015);
+      gs.ball.vx = -Math.cos(bounceAngle) * gs.ball.speed;
+      gs.ball.vy = Math.sin(bounceAngle) * gs.ball.speed;
+      spawnParticles(gs.ball.x, gs.ball.y, '#00ccff');
+    }
+
+    // Score
+    let scored = false;
+    if (gs.ball.x < 0) {
+      gs.p2.score++;
+      scored = true;
+      document.getElementById('p2-score').textContent = gs.p2.score;
+    } else if (gs.ball.x > gs.W) {
+      gs.p1.score++;
+      scored = true;
+      document.getElementById('p1-score').textContent = gs.p1.score;
+    }
+
+    if (scored) {
+      if (gs.p1.score >= 7 || gs.p2.score >= 7) {
+        gs.running = false;
+        showWinScreen();
+        return;
+      }
+      gs.ball = resetBall(gs.W, gs.H, gs.BALL_SIZE, gs.speedInit);
+    }
+
+    // Particles
+    gs.particles = gs.particles.filter(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.2;
+      p.life -= 0.05;
+      return p.life > 0;
+    });
+
+    draw(ctx);
+    animFrame = requestAnimationFrame(update);
+  }
+
+  animFrame = requestAnimationFrame(update);
+}
+
+function draw(ctx) {
+  const gs = gameState;
+  const W = gs.W, H = gs.H;
+  const PAD_X_MARGIN = 40;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Center line
+  ctx.setLineDash([16, 16]);
+  ctx.strokeStyle = 'rgba(0,255,136,0.15)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(W/2, 0);
+  ctx.lineTo(W/2, H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Ball trail
+  gs.ball.trail.forEach((pt, i) => {
+    const alpha = (i / gs.ball.trail.length) * 0.4;
+    const size = gs.ball.size * (i / gs.ball.trail.length) * 0.8;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, size, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(0,255,136,${alpha})`;
+    ctx.fill();
+  });
+
+  // Ball
+  ctx.beginPath();
+  ctx.arc(gs.ball.x, gs.ball.y, gs.ball.size, 0, Math.PI*2);
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = '#00ff88';
+  ctx.shadowBlur = 20;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Paddles
+  const drawPaddle = (x, y, color) => {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = color;
+    const r = 6;
+    const pw = gs.PAD_W, ph = gs.PAD_H;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + pw - r, y);
+    ctx.quadraticCurveTo(x + pw, y, x + pw, y + r);
+    ctx.lineTo(x + pw, y + ph - r);
+    ctx.quadraticCurveTo(x + pw, y + ph, x + pw - r, y + ph);
+    ctx.lineTo(x + r, y + ph);
+    ctx.quadraticCurveTo(x, y + ph, x, y + ph - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  };
+
+  drawPaddle(PAD_X_MARGIN, gs.p1.y, '#00ff88');
+  drawPaddle(W - PAD_X_MARGIN - gs.PAD_W, gs.p2.y, '#00ccff');
+
+  // Particles
+  gs.particles.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+    ctx.fillStyle = p.color + Math.floor(p.life * 255).toString(16).padStart(2,'0');
+    ctx.fill();
+  });
+}
+
+function showWinScreen() {
+  const gs = gameState;
+  const winner = gs.p1.score >= 7 ? gs.p1 : gs.p2;
+  const isP1 = winner === gs.p1;
+  const overlay = document.getElementById('win-overlay');
+  const title = document.getElementById('win-title');
+  const sub = document.getElementById('win-subtitle');
+
+  title.textContent = winner.name + ' WINS!';
+  title.className = 'win-title ' + (isP1 ? 'p1-color' : 'p2-color');
+  sub.textContent = `Final Score: ${gs.p1.score} — ${gs.p2.score}`;
+  overlay.classList.remove('hidden');
+}
+
+function rematch() {
+  const room = rooms[currentRoom];
+  if (room) {
+    cancelAnimationFrame(animFrame);
+    document.getElementById('win-overlay').classList.add('hidden');
+    initGame(room.p1, room.p2);
+    runCountdown(3, () => gameLoop());
+  }
+}
+
+function quitGame() {
+  cancelAnimationFrame(animFrame);
+  gameState = null;
+  if (currentRoom && rooms[currentRoom]) {
+    delete rooms[currentRoom];
+  }
+  currentRoom = null;
+  renderRooms();
+  showScreen('rooms-screen');
+}
+
+// Handle canvas resize
+window.addEventListener('resize', () => {
+  if (!document.getElementById('game-screen').classList.contains('hidden') && gameState) {
+    const room = rooms[currentRoom] || { p1: gameState.p1.name, p2: gameState.p2.name };
+    const p1score = gameState.p1.score;
+    const p2score = gameState.p2.score;
+    initGame(room.p1 || gameState.p1.name, room.p2 || gameState.p2.name);
+    gameState.p1.score = p1score;
+    gameState.p2.score = p2score;
+    document.getElementById('p1-score').textContent = p1score;
+    document.getElementById('p2-score').textContent = p2score;
+  }
+});
+
+// Enter key support
+document.getElementById('username-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') goToRooms();
+});
+document.getElementById('room-name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') createRoom();
+});
+document.getElementById('join-code-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinByCode();
+  e.target.value = e.target.value.toUpperCase();
+});
+</script>
+</body>
+</html>

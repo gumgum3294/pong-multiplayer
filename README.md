@@ -61,10 +61,8 @@ To play with friends online (not just local network):
 ### Option A — ngrok (easiest)
 
 # cd ~/Downloads/pong-multiplayer
-npm start
-# In another terminal:
-ngrok http 3000
-# visit https://kade-sweated-xiomara.ngrok-free.dev
+npm start # In another terminal:
+ngrok http 3000 # visit https://kade-sweated-xiomara.ngrok-free.dev
  with your friend
 ```
 

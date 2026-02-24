@@ -43,7 +43,7 @@ A real-time multiplayer ping pong game built with Node.js, Socket.io, and HTML C
 
 To play with friends online (not just local network):
 
-### Option A — ngrok (easiest)
+
 ```bash
 # cd ~/Downloads/pong-multiplayer
 npm start

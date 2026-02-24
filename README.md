@@ -21,21 +21,6 @@ A real-time multiplayer ping pong game built with Node.js, Socket.io, and HTML C
 - Node.js v16 or higher
 - npm
 
-### Install & Run
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Start the server
-npm start
-```
-
-The server starts at **http://localhost:3000**
-
-Open it in **two different browser windows** (or two devices on the same network) and play!
-
----
 
 ## How to Play
 
@@ -59,7 +44,6 @@ Open it in **two different browser windows** (or two devices on the same network
 To play with friends online (not just local network):
 
 ### Option A — ngrok (easiest)
-
 # cd ~/Downloads/pong-multiplayer
 npm start
 # In another terminal:
@@ -67,7 +51,3 @@ ngrok http 3000
 # visit https://kade-sweated-xiomara.ngrok-free.dev
  with your friend
 ```
-
-### Option B — Deploy to Railway / Render / Fly.io
-- Push this folder to a GitHub repo
-- Deploy on [

@@ -64,7 +64,8 @@ To play with friends online (not just local network):
 npm start
 # In another terminal:
 ngrok http 3000
-## Share the https://xxxx.ngrok.io URL with your friend
+# visit https://kade-sweated-xiomara.ngrok-free.dev
+ with your friend
 ```
 
 ### Option B — Deploy to Railway / Render / Fly.io

@@ -59,9 +59,7 @@ Open it in **two different browser windows** (or two devices on the same network
 To play with friends online (not just local network):
 
 ### Option A — ngrok (easiest)
-```bash
-# Install ngrok: https://ngrok.com
-npm start
+
 # cd ~/Downloads/pong-multiplayer
 npm start
 # In another terminal:
